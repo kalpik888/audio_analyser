@@ -1,0 +1,134 @@
+version: '3.9'
+
+services:
+  # ===== Transcription Service =====
+  transcription-service:
+    build:
+      context: .
+      dockerfile: microservices/transcription_service/Dockerfile
+    container_name: transcription-service
+    ports:
+      - "8001:8001"
+    environment:
+      - TRANSCRIPTION_SERVICE_PORT=8001
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - llm_model=${llm_model}
+    networks:
+      - audio-hub-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+  # ===== Prompt Management Service =====
+  prompt-service:
+    build:
+      context: .
+      dockerfile: microservices/prompt_management_service/Dockerfile
+    container_name: prompt-service
+    ports:
+      - "8002:8002"
+    environment:
+      - PROMPT_SERVICE_PORT=8002
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - llm_model=${llm_model}
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
+    networks:
+      - audio-hub-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+    depends_on:
+      - transcription-service
+
+  # ===== Extraction Service =====
+  extraction-service:
+    build:
+      context: .
+      dockerfile: microservices/extraction_service/Dockerfile
+    container_name: extraction-service
+    ports:
+      - "8003:8003"
+    environment:
+      - EXTRACTION_SERVICE_PORT=8003
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - llm_model=${llm_model}
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
+    networks:
+      - audio-hub-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8003/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+    depends_on:
+      - transcription-service
+
+  # ===== Persistence Service =====
+  persistence-service:
+    build:
+      context: .
+      dockerfile: microservices/persistence_service/Dockerfile
+    container_name: persistence-service
+    ports:
+      - "8004:8004"
+    environment:
+      - PERSISTENCE_SERVICE_PORT=8004
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
+    networks:
+      - audio-hub-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8004/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+    depends_on:
+      - transcription-service
+
+  # ===== API Gateway =====
+  api-gateway:
+    build:
+      context: .
+      dockerfile: microservices/api_gateway/Dockerfile
+    container_name: api-gateway
+    ports:
+      - "8000:8000"
+    environment:
+      - API_GATEWAY_PORT=8000
+      - TRANSCRIPTION_SERVICE_URL=http://transcription-service:8001
+      - PROMPT_SERVICE_URL=http://prompt-service:8002
+      - EXTRACTION_SERVICE_URL=http://extraction-service:8003
+      - PERSISTENCE_SERVICE_URL=http://persistence-service:8004
+      - SERVICE_TIMEOUT=30
+    networks:
+      - audio-hub-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+    depends_on:
+      - transcription-service
+      - prompt-service
+      - extraction-service
+      - persistence-service
+
+networks:
+  audio-hub-network:
+    driver: bridge
+
+volumes:
+  # Optional: For logging/data persistence
+  service-logs:
+    driver: local

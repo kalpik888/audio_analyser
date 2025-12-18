@@ -84,7 +84,7 @@ def normalize_mime_type(file: UploadFile) -> str:
     return mime_type
 
 @app.post("/transcribe")
-async def transcribe(file: UploadFile = File(...)):
+async def transcribe(file: UploadFile = File(...),file_bytes: bytes = None, mime_type: str = None):
     """
     Transcribe audio and detect domain/category.
     
@@ -104,8 +104,9 @@ async def transcribe(file: UploadFile = File(...)):
     """
     try:
         # Decode file bytes from hex
-        file_bytes = await file.read()
-        mime_type = normalize_mime_type(file)
+        if file_bytes is None:
+            file_bytes = await file.read()
+            mime_type = normalize_mime_type(file)
         
         domains_categories_text = get_domains_categories_text()
         
@@ -164,10 +165,7 @@ Return ONLY valid JSON:
             "transcription": parsed_response.get("transcription", ""),
             "domain": parsed_response.get("domain", "unknown"),
             "category": parsed_response.get("category", "unknown"),
-            "tokens_usage": {
-                 "input_tokens":token_input,
-                 'output_token': token_output
-            }
+            "tokens_stage1": [token_input, token_output]
         }
     
     except Exception as e:

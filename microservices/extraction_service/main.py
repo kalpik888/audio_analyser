@@ -11,7 +11,7 @@ Microservice responsible for:
 import json
 import sys
 from pathlib import Path
-from fastapi import FastAPI
+from fastapi import FastAPI, Body
 from fastapi.middleware.cors import CORSMiddleware
 import google.generativeai as genai
 from supabase import Client, create_client
@@ -128,7 +128,7 @@ Generate ONLY a valid extraction prompt (no JSON wrapper, just the prompt text):
 
 
 @app.post("/extract")
-async def extract_data(transcription: str, domain: str, category: str):
+async def extract_data(request_data: dict = Body(...)):
     """
     Extract domain-specific data and general call analysis.
     
@@ -136,8 +136,7 @@ async def extract_data(transcription: str, domain: str, category: str):
         {
             "transcription": "...",
             "domain": "healthcare",
-            "category": "appointment_scheduling",
-            "custom_prompt": "..." or null
+            "category": "appointment_scheduling"
         }
     
     Output:
@@ -148,12 +147,21 @@ async def extract_data(transcription: str, domain: str, category: str):
         }
     """
     try:
+        transcription = request_data.get("transcription", "")
+        domain = request_data.get("domain", "")
+        category = request_data.get("category", "")
        
         extraction_prompt = await fetch_prompt_from_db(domain, category)
         
         if not extraction_prompt:
             example_prompts = fetch_example_prompts()
             extraction_prompt = generate_extraction_prompt(domain, category, example_prompts)
+            data_to_db={
+                "domain": domain,
+                "category": category,
+                "prompt": extraction_prompt
+            }
+            supabase.table("prompts").insert(data_to_db).execute()
 
         # Combined analysis prompt
         combined_prompt = f"""

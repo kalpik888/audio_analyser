@@ -5,10 +5,11 @@ import json
 from fastapi import UploadFile, File, APIRouter
 from fastapi.responses import JSONResponse
 from utils.constants import MIME_TYPE_MAPPING
-from pipelines.transcription_pipeline import transcribe_and_detect_domain
-from pipelines.extraction_pipeline import extract_all_data
+from controller.transcription_pipeline import transcribe_and_detect_domain
+from controller.extraction_pipeline import extract_all_data
 from services.prompt_service import validate_and_generate_prompt
 from services.supabase_service import save_call_to_general_table, save_domain_specific_data
+from controller.tonal_analysis import analyze_tonal
 
 router = APIRouter()
 
@@ -24,6 +25,8 @@ def normalize_mime_type(file: UploadFile) -> str:
         Normalized MIME type
     """
     mime_type = file.content_type
+
+    
     
     if mime_type == "application/octet-stream":
         ext = file.filename.split(".")[-1].lower()
@@ -74,12 +77,16 @@ async def transcribe_endpoint(file: UploadFile = File(...)):
         JSON response with transcription, analysis results, and token usage
     """
     print(f"📂 Received file: {file.filename} | Type: {file.content_type}")
+
+    
     
     # Normalize mime type
     mime_type = normalize_mime_type(file)
     
     # Read file
     file_bytes = await file.read()
+
+    tonal_res= await analyze_tonal(file_bytes,mime_type,file.filename)
 
     # ============ STAGE 1: Transcription + Domain/Category Detection ============
     print("🎙️  Stage 1: Transcribing and detecting domain/category...")
@@ -146,6 +153,7 @@ async def transcribe_endpoint(file: UploadFile = File(...)):
     # ============ Return response ============
     return JSONResponse(content={
         "filename": file.filename,
+        "tonal_analysis": tonal_res,
         "transcription": transcription,
         "domain": domain,
         "category": category,

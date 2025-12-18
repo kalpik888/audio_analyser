@@ -20,6 +20,9 @@ from fastapi.middleware.cors import CORSMiddleware
 import config
 from services.domain_service import initialize_domains_from_db
 from routes.transcription import router as transcription_router
+from fastapi import UploadFile, File
+import google.generativeai as genai
+from config import GEMINI_API_KEY, LLM_MODEL
 
 # ==================== INITIALIZE FASTAPI APP ====================
 
@@ -82,6 +85,8 @@ async def health_check():
         "app": config.APP_TITLE,
         "version": config.APP_VERSION
     }
+genai.configure(api_key=GEMINI_API_KEY)
+model = genai.GenerativeModel(LLM_MODEL)
 
 
 # ==================== ROOT ENDPOINT ====================
@@ -99,6 +104,59 @@ async def root():
         "docs": "/docs",
         "version": config.APP_VERSION
     }
+
+@app.post("/tonal")
+async def tonal(file: UploadFile = File(...)):
+    mime_type = file.content_type
+
+    MIME_TYPE_MAPPING = {
+    "application/octet-stream": {
+        "mp3": "audio/mpeg",
+        "wav": "audio/wav",
+        "m4a": "audio/mp4",
+    }
+}
+    
+    if mime_type == "application/octet-stream":
+        ext = file.filename.split(".")[-1].lower()
+        mime_type = MIME_TYPE_MAPPING["application/octet-stream"].get(ext, mime_type)
+    
+    prompt="""
+You are an expert tonal analysis specialist.
+Listen to this customer service call. 
+Perform a tonal analysis focusing on the customer's voice.
+1. Did the customer sound satisfied at the end?
+2. Identify any timestamps where the pitch or speed indicated frustration.
+Provide your analysis in the following JSON format:
+{"tonal_sentiment_analysis": "detailed analysis of tone and sentiment here..."}
+
+    """
+
+    
+    # Read file
+    file_bytes = await file.read()
+
+    
+
+    response = model.generate_content([prompt, {
+            "mime_type": mime_type,
+            "data": file_bytes
+        }])
+    
+    input_tokens = response.usage_metadata.prompt_token_count if response.usage_metadata else 0
+    output_tokens = response.usage_metadata.candidates_token_count if response.usage_metadata else 0
+    
+    return {
+
+        "tonal_analysis": response.text,
+        "token_usage": {
+            "input_tokens": input_tokens,
+            "output_tokens": output_tokens,
+            "total_tokens": input_tokens + output_tokens
+        }
+    }
+    
+
 
 
 if __name__ == "__main__":

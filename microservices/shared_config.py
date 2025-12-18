@@ -8,16 +8,16 @@ load_dotenv()
 
 # ==================== SERVICE PORTS ====================
 TRANSCRIPTION_SERVICE_PORT = int(os.getenv("TRANSCRIPTION_SERVICE_PORT", "8001"))
-PROMPT_SERVICE_PORT = int(os.getenv("PROMPT_SERVICE_PORT", "8002"))
 EXTRACTION_SERVICE_PORT = int(os.getenv("EXTRACTION_SERVICE_PORT", "8003"))
-PERSISTENCE_SERVICE_PORT = int(os.getenv("PERSISTENCE_SERVICE_PORT", "8004"))
+TONAL_SERVICE_PORT = int(os.getenv("TONAL_SERVICE_PORT", "8005"))
 API_GATEWAY_PORT = int(os.getenv("API_GATEWAY_PORT", "8000"))
+TONAL_SERVICE_PORT2 = int(os.getenv("TONAL_SERVICE_PORT2", "8006"))
 
 # ==================== SERVICE URLS ====================
 TRANSCRIPTION_SERVICE_URL = os.getenv("TRANSCRIPTION_SERVICE_URL", f"http://localhost:{TRANSCRIPTION_SERVICE_PORT}")
-PROMPT_SERVICE_URL = os.getenv("PROMPT_SERVICE_URL", f"http://localhost:{PROMPT_SERVICE_PORT}")
+TONAL_SERVICE_URL = os.getenv("TONAL_SERVICE_URL", f"http://localhost:{TONAL_SERVICE_PORT}")
 EXTRACTION_SERVICE_URL = os.getenv("EXTRACTION_SERVICE_URL", f"http://localhost:{EXTRACTION_SERVICE_PORT}")
-PERSISTENCE_SERVICE_URL = os.getenv("PERSISTENCE_SERVICE_URL", f"http://localhost:{PERSISTENCE_SERVICE_PORT}")
+
 
 # ==================== API KEYS ====================
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")

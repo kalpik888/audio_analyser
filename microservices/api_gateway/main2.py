@@ -27,6 +27,8 @@ from shared_config import (
     SUPABASE_URL, SUPABASE_SERVICE_KEY
 )
 
+from data_mask_service.pii_sanitizer import redact_pii
+
 
 
 app = FastAPI(
@@ -164,6 +166,11 @@ async def transcribe_endpoint(file: UploadFile = File(...)):
         transcription_text = transcript_result.get("transcription", "")
         domain = transcript_result.get("domain", "unknown")
         category = transcript_result.get("category", "unknown")
+
+        print(transcription_text)
+
+        clean_transcription = redact_pii(transcription_text)
+        print(clean_transcription)
         
         # 5. CALL EXTRACTION SERVICE (Synchronous)
         # Now that we have the text, we can analyze it.
@@ -172,7 +179,7 @@ async def transcribe_endpoint(file: UploadFile = File(...)):
             EXTRACTION_SERVICE_URL, 
             "/extract",
             data={
-                "transcription": transcription_text,
+                "transcription": clean_transcription,
                 "domain": domain,
                 "category": category
             }
@@ -229,7 +236,7 @@ async def transcribe_endpoint(file: UploadFile = File(...)):
         # 8. RETURN UNIFIED RESPONSE
         return JSONResponse(content={
             "filename": file.filename,
-            "transcription": transcription_text,
+            "transcription": clean_transcription,
             "domain": domain,
             "category": category,
             "domain_specific_data": domain_specific_data,
